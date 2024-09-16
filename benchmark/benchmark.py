@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-
 import datetime
 import json
 import os
@@ -8,6 +7,7 @@ import re
 import shutil
 import subprocess
 import time
+import traceback
 from collections import defaultdict
 from json.decoder import JSONDecodeError
 from pathlib import Path
@@ -16,13 +16,11 @@ from typing import List
 
 import git
 import lox
-import matplotlib.pyplot as plt
-import numpy as np
-import openai
 import pandas as pd
 import prompts
 import typer
-from imgcat import imgcat
+from dotenv import load_dotenv
+from plots import plot_refactoring
 from rich.console import Console
 
 from aider import models
@@ -37,6 +35,11 @@ EXERCISES_DIR_DEFAULT = "exercism-python"
 app = typer.Typer(add_completion=False, pretty_exceptions_enable=False)
 
 
+NUM_TESTS = (89, 133)
+
+load_dotenv(override=True)
+
+
 def show_stats(dirnames, graphs):
     raw_rows = []
     for dirname in dirnames:
@@ -45,49 +48,14 @@ def show_stats(dirnames, graphs):
 
     # return
 
-    repeats = []
     seen = dict()
     rows = []
     for row in raw_rows:
         if not row:
             continue
 
-        if row.model == "gpt-3.5-turbo":
-            row.model = "gpt-3.5-turbo-0613"
-
-        if row.model == "gpt-4":
-            row.model = "gpt-4-0613"
-
-        if row.edit_format == "diff-func-string":
-            row.edit_format = "diff-func"
-
-        if (
-            row.model == "gpt-3.5-turbo-0613"
-            and row.edit_format == "whole"
-            and "repeat" not in row.dir_name
-        ):
-            # remember this row, so we can update it with the repeat_avg
-            repeat_row = len(rows)
-
-        # gpt35 = "gpt-3.5-turbo"
-        # gpt4 = "gpt-4"
-        # if row.model.startswith(gpt35):
-        #    row.model = gpt35 + "\n" + row.model[len(gpt35) :]
-        # elif row.model.startswith(gpt4):
-        #    row.model = gpt4 + "\n" + row.model[len(gpt4) :]
-
-        if "folk" in row.dir_name:
-            row.edit_format += "folk"
-
-        if row.model == "gpt-4-0613":
-            row.model += "\n(8k context window is\ntoo small for benchmark)"
-
-        if row.completed_tests < 89:
+        if row.completed_tests not in NUM_TESTS:
             print(f"Warning: {row.dir_name} is incomplete: {row.completed_tests}")
-
-        # if "repeat" in row.dir_name:
-        #    repeats.append(vars(row))
-        #    continue
 
         kind = (row.model, row.edit_format)
         if kind in seen:
@@ -98,279 +66,17 @@ def show_stats(dirnames, graphs):
         seen[kind] = row.dir_name
         rows.append(vars(row))
 
-    if repeats:
-        dump(repeats)
-        extra = rows[repeat_row]
-        dump(extra)
-        repeats.append(extra)
-        repeats = pd.DataFrame.from_records(repeats)
-        repeat_max = repeats["pass_rate_2"].max()
-        repeat_min = repeats["pass_rate_2"].min()
-        repeat_avg = repeats["pass_rate_2"].mean()
-
-        repeat_lo = repeat_avg - repeat_min
-        repeat_hi = repeat_max - repeat_avg
-
-        dump(repeat_max)
-        dump(repeat_min)
-        dump(repeat_avg)
-
-        # use the average in the main bar
-        rows[repeat_row]["pass_rate_2"] = repeat_avg
-    else:
-        repeat_hi = repeat_lo = repeat_avg = None  # noqa: F841
+    repeat_hi = repeat_lo = repeat_avg = None  # noqa: F841
 
     df = pd.DataFrame.from_records(rows)
-    df.sort_values(by=["model", "edit_format"], inplace=True)
+    # df.sort_values(by=["model", "edit_format"], inplace=True)
 
     # dump(df)
     if graphs:
         # plot_timing(df)
         # plot_outcomes(df, repeats, repeat_hi, repeat_lo, repeat_avg)
+        # plot_outcomes_claude(df)
         plot_refactoring(df)
-
-
-def plot_timing(df):
-    """plot a graph showing the average duration of each (model, edit_format)"""
-    plt.rcParams["hatch.linewidth"] = 0.5
-    plt.rcParams["hatch.color"] = "#444444"
-
-    from matplotlib import rc
-
-    rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"], "size": 10})
-
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.grid(axis="y", zorder=0, lw=0.2)
-
-    zorder = 1
-    grouped = df.groupby(["model", "edit_format"])["avg_duration"].mean().unstack()
-    num_models, num_formats = grouped.shape
-
-    pos = np.array(range(num_models))
-    width = 0.8 / num_formats
-
-    formats = grouped.columns
-    models = grouped.index
-
-    for i, fmt in enumerate(formats):
-        edge = dict(edgecolor="#ffffff", linewidth=1.5)
-        color = "#b3e6a8" if "diff" in fmt else "#b3d1e6"
-        hatch = "////" if "func" in fmt else ""
-        rects = ax.bar(
-            pos + i * width,
-            grouped[fmt],
-            width * 0.95,
-            label=fmt,
-            color=color,
-            hatch=hatch,
-            zorder=zorder + 1,
-            **edge,
-        )
-        ax.bar_label(rects, padding=4, labels=[f"{v:.1f}s" for v in grouped[fmt]], size=6)
-
-    ax.set_xticks([p + 0.5 * width for p in pos])
-    ax.set_xticklabels(models)
-
-    ax.set_ylabel("Average GPT response time\nper exercise (sec)")
-    ax.set_title("GPT Code Editing Speed\n(time per coding task)")
-    ax.legend(
-        title="Edit Format",
-        loc="upper left",
-    )
-    ax.set_ylim(top=max(grouped.max()) * 1.1)  # Set y-axis limit to 10% more than the max value
-
-    plt.tight_layout()
-    plt.savefig("tmp_timing.svg")
-    imgcat(fig)
-
-
-def plot_outcomes(df, repeats, repeat_hi, repeat_lo, repeat_avg):
-    tries = [df.groupby(["model", "edit_format"])["pass_rate_2"].mean()]
-    if True:
-        tries += [df.groupby(["model", "edit_format"])["pass_rate_1"].mean()]
-
-    plt.rcParams["hatch.linewidth"] = 0.5
-    plt.rcParams["hatch.color"] = "#444444"
-
-    from matplotlib import rc
-
-    rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"], "size": 10})
-
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.grid(axis="y", zorder=0, lw=0.2)
-
-    zorder = 1
-    for grouped in tries:
-        zorder += 1
-        df = grouped.unstack()
-        num_models, num_formats = df.shape
-
-        pos = np.array(range(num_models))
-        width = 0.8 / num_formats
-
-        formats = df.columns
-        models = df.index
-
-        for i, fmt in enumerate(formats):
-            if zorder > 1:
-                edge = dict(
-                    edgecolor="#ffffff",
-                    linewidth=1.5,
-                )
-            else:
-                edge = dict()
-            if zorder == 2:
-                edge["label"] = fmt
-
-            color = "#b3e6a8" if "diff" in fmt else "#b3d1e6"
-            hatch = "////" if "func" in fmt else ""
-            rects = ax.bar(
-                pos + i * width,
-                df[fmt],
-                width * 0.95,
-                color=color,
-                hatch=hatch,
-                zorder=zorder,
-                **edge,
-            )
-            if zorder == 2:
-                ax.bar_label(rects, padding=4, labels=[f"{v:.0f}%" for v in df[fmt]], size=6)
-
-    if len(repeats):
-        ax.errorbar(
-            1.4,
-            repeat_avg,
-            yerr=[[repeat_lo], [repeat_hi]],
-            fmt="none",
-            zorder=5,
-            capsize=2.5,
-            elinewidth=1,
-            markeredgewidth=1,
-        )
-
-    ax.set_xticks([p + 0.5 * width for p in pos])
-    ax.set_xticklabels(models)
-
-    top = 95
-    ax.annotate(
-        "First attempt,\nbased on\nnatural language\ninstructions",
-        xy=(2.20, 41),
-        xytext=(2, top),
-        horizontalalignment="center",
-        verticalalignment="top",
-        arrowprops={"arrowstyle": "->", "connectionstyle": "arc3,rad=0.3"},
-    )
-    ax.annotate(
-        "Second attempt,\nincluding unit test\nerror output",
-        xy=(2.55, 56),
-        xytext=(3.5, top),
-        horizontalalignment="center",
-        verticalalignment="top",
-        arrowprops={"arrowstyle": "->", "connectionstyle": "arc3,rad=0.3"},
-    )
-
-    ax.set_ylabel("Percent of exercises completed successfully")
-    # ax.set_xlabel("Model")
-    ax.set_title("GPT Code Editing Skill\n(percent coding tasks correct)")
-    ax.legend(
-        title="Edit Format",
-        loc="upper left",
-        # bbox_to_anchor=(0.95, 0.95),
-    )
-    ax.set_ylim(top=100)
-
-    plt.tight_layout()
-    plt.savefig("tmp.svg")
-    imgcat(fig)
-
-    # df.to_csv("tmp.benchmarks.csv")
-
-
-def plot_refactoring(df):
-    tries = [df.groupby(["model", "edit_format"])["pass_rate_1"].mean()]
-
-    plt.rcParams["hatch.linewidth"] = 0.5
-    plt.rcParams["hatch.color"] = "#444444"
-
-    from matplotlib import rc
-
-    rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"], "size": 10})
-
-    fig, ax = plt.subplots(figsize=(6, 4))
-    ax.grid(axis="y", zorder=0, lw=0.2)
-
-    zorder = 1
-    for grouped in tries:
-        zorder += 1
-        df = grouped.unstack()
-        num_models, num_formats = df.shape
-
-        pos = np.array(range(num_models))
-        width = 0.8 / num_formats
-
-        formats = df.columns
-        models = df.index
-
-        dump(formats)
-        for i, fmt in enumerate(formats):
-            hatch = ""
-
-            if fmt == "diff":
-                color = "#b3e6a8"
-                label = "Baseline (search/replace blocks)"
-            elif fmt == "udiff":
-                color = "#b3d1e6"
-                label = "Unified diffs"
-            elif fmt == "difffolk":
-                label = "Baseline + blind, no hands, $2k tip, etc"
-                color = "#b3e6a8"
-                hatch = "////"
-            elif fmt == "udifffolk":
-                label = "Unified diffs + blind, no hands, $2k tip, etc"
-                color = "#b3d1e6"
-                hatch = "////"
-
-            if zorder > 1:
-                edge = dict(
-                    edgecolor="#ffffff",
-                    linewidth=1.5,
-                )
-            else:
-                edge = dict()
-            if zorder == 2:
-                edge["label"] = label
-
-            rects = ax.bar(
-                pos + i * width,
-                df[fmt],
-                width * 0.95,
-                color=color,
-                hatch=hatch,
-                zorder=zorder,
-                **edge,
-            )
-
-            if zorder == 2:
-                ax.bar_label(rects, padding=4, labels=[f"{v:.0f}%" for v in df[fmt]], size=6)
-
-    ax.set_xticks([p + 1.0 * width for p in pos])
-    ax.set_xticklabels(models)
-
-    ax.set_ylabel("Percent of exercises completed successfully")
-    # ax.set_xlabel("Model")
-    ax.set_title('Refactoring "Laziness" Benchmark\n(percent coding tasks correct)')
-    ax.legend(
-        # title="Edit Format",
-        loc="upper left",
-        # bbox_to_anchor=(0.95, 0.95),
-    )
-    ax.set_ylim(top=100)
-
-    plt.tight_layout()
-    plt.savefig("tmp.svg")
-    imgcat(fig)
-
-    # df.to_csv("tmp.benchmarks.csv")
 
 
 def resolve_dirname(dirname, use_single_prior, make_new):
@@ -595,7 +301,7 @@ def summarize_results(dirname):
     res.total_tests = len(list(Path(dirname).glob("*")))
 
     try:
-        tries = max(len(results["tests_outcomes"]) for results in all_results if results)
+        tries = max(len(results.get("tests_outcomes", [])) for results in all_results if results)
     except ValueError:
         tries = 0
 
@@ -611,6 +317,7 @@ def summarize_results(dirname):
     res.test_timeouts = 0
     res.exhausted_context_windows = 0
     res.num_malformed_responses = 0
+    res.num_with_malformed_responses = 0
     res.syntax_errors = 0
     res.indentation_errors = 0
     res.lazy_comments = 0
@@ -622,19 +329,22 @@ def summarize_results(dirname):
             continue
 
         res.completed_tests += 1
-        passed = results["tests_outcomes"][-1]
+        tests_outcomes = results.get("tests_outcomes", [])
+        passed = tests_outcomes and tests_outcomes[-1]
         if passed:
-            for i in range(len(results["tests_outcomes"]) - 1, tries):
+            for i in range(len(tests_outcomes) - 1, tries):
                 passed_tests[i] += 1
 
-        res.cost += results["cost"]
-        res.duration += results["duration"]
+        res.cost += results.get("cost", 0)
+        res.duration += results.get("duration", 0)
         res.test_timeouts += results.get("test_timeouts", 0)
 
         res.error_outputs += results.get("num_error_outputs", 0)
         res.user_asks += results.get("num_user_asks", 0)
         res.exhausted_context_windows += results.get("num_exhausted_context_windows", 0)
         res.num_malformed_responses += results.get("num_malformed_responses", 0)
+        if results.get("num_malformed_responses"):
+            res.num_with_malformed_responses += 1
         res.lazy_comments += results.get("lazy_comments", 0)
 
         res.syntax_errors += results.get("syntax_errors", 0)
@@ -642,7 +352,8 @@ def summarize_results(dirname):
 
         for key in "model edit_format commit_hash".split():
             val = results.get(key)
-            variants[key].add(val)
+            if val:
+                variants[key].add(val)
 
     if not res.completed_tests:
         return
@@ -653,7 +364,25 @@ def summarize_results(dirname):
     console = Console(highlight=False)
     console.rule(title=str(dirname))
 
-    console.print(f"test-cases: {res.completed_tests}")
+    commit_hashes = variants["commit_hash"]
+    versions = get_versions(commit_hashes)
+    date = dirname.name[:10]
+
+    def show(stat, red="red"):
+        val = getattr(res, stat)
+        style = red if val else None
+        console.print(f"  {stat}: {val}", style=style)
+
+    percents = dict()
+    for i in range(tries):
+        pass_rate = 100 * passed_tests[i] / res.completed_tests
+        percents[i] = pass_rate
+        # console.print(f"{pass_rate:.1f}% correct after try {i+1}")
+        setattr(res, f"pass_rate_{i + 1}", f"{pass_rate:.1f}")
+
+    print(f"- dirname: {dirname.name}")
+    style = None if res.completed_tests in NUM_TESTS else "red"
+    console.print(f"  test_cases: {res.completed_tests}", style=style)
     for key, val in variants.items():
         if len(val) > 1:
             style = "red"
@@ -661,40 +390,42 @@ def summarize_results(dirname):
             style = None
         val = ", ".join(map(str, val))
         setattr(res, key, val)
-        console.print(f"{key}: {val}", style=style)
+        console.print(f"  {key}: {val}", style=style)
 
-    def show(stat):
-        val = getattr(res, stat)
-        style = "red" if val else None
-        console.print(f"{stat}: {val}", style=style)
+    for i in range(tries):
+        print(f"  pass_rate_{i + 1}: {percents[i]:.1f}")
 
-    console.print()
+    pct_well_formed = 1.0 - res.num_with_malformed_responses / res.completed_tests
+    print(f"  percent_cases_well_formed: {pct_well_formed * 100:.1f}")
+
     show("error_outputs")
+    show("num_malformed_responses")
+    show("num_with_malformed_responses")
     show("user_asks")
     show("lazy_comments")
-    show("num_malformed_responses")
     show("syntax_errors")
     show("indentation_errors")
-    console.print()
     show("exhausted_context_windows")
     show("test_timeouts")
 
-    console.print()
-    for i in range(tries):
-        pass_rate = 100 * passed_tests[i] / res.completed_tests
-        console.print(f"{pass_rate:.1f}% correct after try {i}")
-        setattr(res, f"pass_rate_{i+1}", pass_rate)
+    a_model = set(variants["model"]).pop()
+    command = f"aider --model {a_model}"
+    print(f"  command: {command}")
 
-    console.print()
+    print(f"  date: {date}")
+    print("  versions:", ",".join(versions))
+
     res.avg_duration = res.duration / res.completed_tests
+    print(f"  seconds_per_case: {res.avg_duration:.1f}")
 
-    console.print(f"duration: {res.avg_duration:.1f} sec/test-case")
+    print(f"  total_cost: {res.cost:.4f}")
 
     res.avg_cost = res.cost / res.completed_tests
 
     projected_cost = res.avg_cost * res.total_tests
 
-    console.print(
+    print()
+    print(
         f"costs: ${res.avg_cost:.4f}/test-case, ${res.cost:.2f} total,"
         f" ${projected_cost:.2f} projected"
     )
@@ -703,6 +434,23 @@ def summarize_results(dirname):
 
     # print(json.dumps(vars(res), indent=4, sort_keys=True))
     return res
+
+
+def get_versions(commit_hashes):
+    versions = set()
+    for hsh in commit_hashes:
+        if not hsh:
+            continue
+        hsh = hsh.split("-")[0]
+        try:
+            version = subprocess.check_output(
+                ["git", "show", f"{hsh}:aider/__init__.py"], universal_newlines=True
+            )
+            version = re.search(r'__version__ = "(.*)"', version).group(1)
+            versions.add(version)
+        except subprocess.CalledProcessError:
+            pass
+    return versions
 
 
 def get_replayed_content(replay_dname, test_dname):
@@ -722,7 +470,21 @@ def get_replayed_content(replay_dname, test_dname):
     return "".join(res)
 
 
-def run_test(
+def run_test(original_dname, testdir, *args, **kwargs):
+    try:
+        return run_test_real(original_dname, testdir, *args, **kwargs)
+    except Exception as err:
+        print("=" * 40)
+        print("Test failed")
+        print(err)
+        traceback.print_exc()
+
+        testdir = Path(testdir)
+        results_fname = testdir / ".aider.results.json"
+        results_fname.write_text(json.dumps(dict(exception=str(err))))
+
+
+def run_test_real(
     original_dname,
     testdir,
     model_name,
@@ -787,7 +549,7 @@ def run_test(
         chat_history_file=history_fname,
     )
 
-    main_model = models.Model.create(model_name)
+    main_model = models.Model(model_name)
     edit_format = edit_format or main_model.edit_format
 
     dump(main_model)
@@ -795,18 +557,17 @@ def run_test(
     show_fnames = ",".join(map(str, fnames))
     print("fnames:", show_fnames)
 
-    client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-
     coder = Coder.create(
         main_model,
         edit_format,
         io,
-        client=client,
         fnames=fnames,
         use_git=False,
         stream=False,
-        pretty=False,
         verbose=verbose,
+        # auto_lint=False,  # disabled for code-in-json experiments
+        cache_prompts=True,
+        suggest_shell_commands=False,
     )
     coder.max_apply_update_errors = max_apply_update_errors
 
@@ -832,7 +593,7 @@ def run_test(
 
             coder.apply_updates()
         else:
-            response = coder.run(with_message=instructions)
+            response = coder.run(with_message=instructions, preproc=False)
         dur += time.time() - start
 
         if not no_aider:

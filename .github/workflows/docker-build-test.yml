@@ -2,9 +2,16 @@ name: Docker Build Test
 
 on:
   push:
+    paths-ignore:
+      - 'aider/website/**'
+      - README.md
+      - HISTORY.md
     branches:
       - main
   pull_request:
+    paths-ignore:
+      - 'aider/website/**'
+      - README.md
     branches:
       - main
 
@@ -16,7 +23,7 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -27,6 +34,10 @@ jobs:
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
         password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      env:
+        dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+        dockerhub_password: ${{ secrets.DOCKERHUB_PASSWORD }}
+      if: ${{ env.dockerhub_username }} && ${{ env.dockerhub_password }}
 
     - name: Build Docker image
       uses: docker/build-push-action@v5

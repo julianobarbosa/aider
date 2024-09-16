@@ -1,9 +1,10 @@
+import math
 import os
 import queue
 import tempfile
 import time
 
-import numpy as np
+from aider.llm import litellm
 
 try:
     import soundfile as sf
@@ -26,7 +27,7 @@ class Voice:
 
     threshold = 0.15
 
-    def __init__(self, client):
+    def __init__(self):
         if sf is None:
             raise SoundDeviceError
         try:
@@ -37,10 +38,10 @@ class Voice:
         except (OSError, ModuleNotFoundError):
             raise SoundDeviceError
 
-        self.client = client
-
     def callback(self, indata, frames, time, status):
         """This is called (from a separate thread) for each audio block."""
+        import numpy as np
+
         rms = np.sqrt(np.mean(indata**2))
         self.max_rms = max(self.max_rms, rms)
         self.min_rms = min(self.min_rms, rms)
@@ -55,7 +56,7 @@ class Voice:
 
     def get_prompt(self):
         num = 10
-        if np.isnan(self.pct) or self.pct < self.threshold:
+        if math.isnan(self.pct) or self.pct < self.threshold:
             cnt = 0
         else:
             cnt = int(self.pct * 10)
@@ -71,27 +72,45 @@ class Voice:
             return self.raw_record_and_transcribe(history, language)
         except KeyboardInterrupt:
             return
+        except SoundDeviceError as e:
+            print(f"Error: {e}")
+            print("Please ensure you have a working audio input device connected and try again.")
+            return
 
     def raw_record_and_transcribe(self, history, language):
         self.q = queue.Queue()
 
         filename = tempfile.mktemp(suffix=".wav")
 
-        sample_rate = 16000  # 16kHz
+        try:
+            sample_rate = int(self.sd.query_devices(None, "input")["default_samplerate"])
+        except (TypeError, ValueError):
+            sample_rate = 16000  # fallback to 16kHz if unable to query device
+        except self.sd.PortAudioError:
+            raise SoundDeviceError(
+                "No audio input device detected. Please check your audio settings and try again."
+            )
 
         self.start_time = time.time()
 
-        with self.sd.InputStream(samplerate=sample_rate, channels=1, callback=self.callback):
-            prompt(self.get_prompt, refresh_interval=0.1)
+        try:
+            with self.sd.InputStream(samplerate=sample_rate, channels=1, callback=self.callback):
+                prompt(self.get_prompt, refresh_interval=0.1)
+        except self.sd.PortAudioError as err:
+            raise SoundDeviceError(f"Error accessing audio input device: {err}")
 
         with sf.SoundFile(filename, mode="x", samplerate=sample_rate, channels=1) as file:
             while not self.q.empty():
                 file.write(self.q.get())
 
         with open(filename, "rb") as fh:
-            transcript = self.client.audio.transcriptions.create(
-                model="whisper-1", file=fh, prompt=history, language=language
-            )
+            try:
+                transcript = litellm.transcription(
+                    model="whisper-1", file=fh, prompt=history, language=language
+                )
+            except Exception as err:
+                print(f"Unable to transcribe {filename}: {err}")
+                return
 
         text = transcript.text
         return text

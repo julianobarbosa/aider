@@ -2,44 +2,77 @@ import hashlib
 import json
 
 import backoff
-import httpx
-import openai
-
-# from diskcache import Cache
-from openai import APIConnectionError, InternalServerError, RateLimitError
 
 from aider.dump import dump  # noqa: F401
+from aider.llm import litellm
+
+# from diskcache import Cache
+
 
 CACHE_PATH = "~/.aider.send.cache.v1"
 CACHE = None
 # CACHE = Cache(CACHE_PATH)
 
 
-@backoff.on_exception(
-    backoff.expo,
-    (
-        InternalServerError,
-        RateLimitError,
-        APIConnectionError,
+def retry_exceptions():
+    import httpx
+
+    return (
         httpx.ConnectError,
-    ),
-    max_tries=10,
-    on_backoff=lambda details: print(
-        f"{details.get('exception','Exception')}\nRetry in {details['wait']:.1f} seconds."
-    ),
-)
-def send_with_retries(client, model_name, messages, functions, stream):
-    if not client:
-        raise ValueError("No openai client provided")
+        httpx.RemoteProtocolError,
+        httpx.ReadTimeout,
+        litellm.exceptions.APIConnectionError,
+        litellm.exceptions.APIError,
+        litellm.exceptions.RateLimitError,
+        litellm.exceptions.ServiceUnavailableError,
+        litellm.exceptions.Timeout,
+        litellm.exceptions.InternalServerError,
+        litellm.llms.anthropic.AnthropicError,
+    )
+
+
+def lazy_litellm_retry_decorator(func):
+    def wrapper(*args, **kwargs):
+        decorated_func = backoff.on_exception(
+            backoff.expo,
+            retry_exceptions(),
+            max_time=60,
+            on_backoff=lambda details: print(
+                f"{details.get('exception', 'Exception')}\nRetry in {details['wait']:.1f} seconds."
+            ),
+        )(func)
+        return decorated_func(*args, **kwargs)
+
+    return wrapper
+
+
+def send_completion(
+    model_name,
+    messages,
+    functions,
+    stream,
+    temperature=0,
+    extra_headers=None,
+    max_tokens=None,
+):
+    from aider.llm import litellm
 
     kwargs = dict(
         model=model_name,
         messages=messages,
-        temperature=0,
         stream=stream,
     )
+    if temperature is not None:
+        kwargs["temperature"] = temperature
+
     if functions is not None:
-        kwargs["functions"] = functions
+        function = functions[0]
+        kwargs["tools"] = [dict(type="function", function=function)]
+        kwargs["tool_choice"] = {"type": "function", "function": {"name": function["name"]}}
+    if extra_headers is not None:
+        kwargs["extra_headers"] = extra_headers
+    if max_tokens is not None:
+        kwargs["max_tokens"] = max_tokens
 
     key = json.dumps(kwargs, sort_keys=True).encode()
 
@@ -49,7 +82,9 @@ def send_with_retries(client, model_name, messages, functions, stream):
     if not stream and CACHE is not None and key in CACHE:
         return hash_object, CACHE[key]
 
-    res = client.chat.completions.create(**kwargs)
+    # del kwargs['stream']
+
+    res = litellm.completion(**kwargs)
 
     if not stream and CACHE is not None:
         CACHE[key] = res
@@ -57,15 +92,19 @@ def send_with_retries(client, model_name, messages, functions, stream):
     return hash_object, res
 
 
-def simple_send_with_retries(client, model_name, messages):
+@lazy_litellm_retry_decorator
+def simple_send_with_retries(model_name, messages, extra_headers=None):
     try:
-        _hash, response = send_with_retries(
-            client=client,
-            model_name=model_name,
-            messages=messages,
-            functions=None,
-            stream=False,
-        )
+        kwargs = {
+            "model_name": model_name,
+            "messages": messages,
+            "functions": None,
+            "stream": False,
+        }
+        if extra_headers is not None:
+            kwargs["extra_headers"] = extra_headers
+
+        _hash, response = send_completion(**kwargs)
         return response.choices[0].message.content
-    except (AttributeError, openai.BadRequestError):
+    except (AttributeError, litellm.exceptions.BadRequestError):
         return

@@ -38,13 +38,15 @@ The diff needs to apply to a unique set of lines in {path}!
 {original}```
 """
 
+other_hunks_applied = (
+    "Note: some hunks did apply successfully. See the updated source code shown above.\n\n"
+)
+
 
 class UnifiedDiffCoder(Coder):
+    """A coder that uses unified diff format for code modifications."""
     edit_format = "udiff"
-
-    def __init__(self, *args, **kwargs):
-        self.gpt_prompts = UnifiedDiffPrompts()
-        super().__init__(*args, **kwargs)
+    gpt_prompts = UnifiedDiffPrompts()
 
     def get_edits(self):
         content = self.partial_response_content
@@ -110,6 +112,8 @@ class UnifiedDiffCoder(Coder):
 
         if errors:
             errors = "\n\n".join(errors)
+            if len(errors) < len(uniq):
+                errors += other_hunks_applied
             raise ValueError(errors)
 
 
@@ -256,6 +260,9 @@ def normalize_hunk(hunk):
 def directly_apply_hunk(content, hunk):
     before, after = hunk_to_before_after(hunk)
 
+    if not before:
+        return
+
     before_lines, _ = hunk_to_before_after(hunk, lines=True)
     before_lines = "".join([line.strip() for line in before_lines])
 
@@ -277,7 +284,8 @@ def apply_partial_hunk(content, preceding_context, changes, following_context):
 
     use_all = len_prec + len_foll
 
-    for drop in range(use_all):
+    # if there is a - in the hunk, we can go all the way to `use=0`
+    for drop in range(use_all + 1):
         use = use_all - drop
 
         for use_prec in range(len_prec, -1, -1):
@@ -301,7 +309,7 @@ def apply_partial_hunk(content, preceding_context, changes, following_context):
 
 
 def find_diffs(content):
-    # We can always use triple-quotes, because all the udiff content
+    # We can always fence with triple-quotes, because all the udiff content
     # is prefixed with +/-/space.
 
     if not content.endswith("\n"):
@@ -334,8 +342,9 @@ def process_fenced_block(lines, start_line_num):
     block = lines[start_line_num:line_num]
     block.append("@@ @@")
 
-    if block[1].startswith("+++ "):
-        fname = block[1].split()[1]
+    if block[0].startswith("--- ") and block[1].startswith("+++ "):
+        # Extract the file path, considering that it might contain spaces
+        fname = block[1][4:].strip()
         block = block[2:]
     else:
         fname = None
@@ -349,6 +358,20 @@ def process_fenced_block(lines, start_line_num):
         hunk.append(line)
         if len(line) < 2:
             continue
+
+        if line.startswith("+++ ") and hunk[-2].startswith("--- "):
+            if hunk[-3] == "\n":
+                hunk = hunk[:-3]
+            else:
+                hunk = hunk[:-2]
+
+            edits.append((fname, hunk))
+            hunk = []
+            keeper = False
+
+            fname = line[4:].strip()
+            continue
+
         op = line[0]
         if op in "-+":
             keeper = True
@@ -362,6 +385,7 @@ def process_fenced_block(lines, start_line_num):
         hunk = hunk[:-1]
         edits.append((fname, hunk))
         hunk = []
+        keeper = False
 
     return line_num + 1, edits
 

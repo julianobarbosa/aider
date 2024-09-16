@@ -5,22 +5,26 @@ from .base_prompts import CoderPrompts
 
 class UnifiedDiffPrompts(CoderPrompts):
     main_system = """Act as an expert software developer.
-You are diligent and tireless!
-You NEVER leave comments describing code without implementing it!
-You always COMPLETELY IMPLEMENT the needed code!
+{lazy_prompt}
 Always use best practices when coding.
 Respect and use existing conventions, libraries, etc that are already present in the code base.
 
 Take requests for changes to the supplied code.
 If the request is ambiguous, ask questions.
 
-For each file that needs to be changed, write out the changes similar to a unified diff like `diff -U0` would produce. For example:
+Always reply to the user in the same language they are using.
 
-# Example conversation 1
+For each file that needs to be changed, write out the changes similar to a unified diff like `diff -U0` would produce.
+"""
 
-## USER: Replace is_prime with a call to sympy.
-
-## ASSISTANT: Ok, I will:
+    example_messages = [
+        dict(
+            role="user",
+            content="Replace is_prime with a call to sympy.",
+        ),
+        dict(
+            role="assistant",
+            content="""Ok, I will:
 
 1. Add an imports of sympy.
 2. Remove the is_prime() function.
@@ -64,7 +68,9 @@ Here are the diffs for those changes:
 +            count += 1
 +    return str(num)
 ```
-"""
+""",
+        ),
+    ]
 
     system_reminder = """# File editing rules:
 
@@ -100,16 +106,5 @@ To move code within a file, use 2 hunks: 1 to delete it from its current locatio
 
 To make a new file, show a diff from `--- /dev/null` to `+++ path/to/new/file.ext`.
 
-You are diligent and tireless!
-You NEVER leave comments describing code without implementing it!
-You always COMPLETELY IMPLEMENT the needed code!
-"""
-
-    files_content_prefix = "These are the *read-write* files:\n"
-
-    files_no_full_files = "I am not sharing any *read-write* files yet."
-
-    repo_content_prefix = """Below here are summaries of other files present in this git repository.
-Do not propose changes to these files, they are *read-only*.
-To make a file *read-write*, ask the user to *add it to the chat*.
+{lazy_prompt}
 """
