@@ -1133,52 +1133,29 @@
   seconds_per_case: 177.7
   total_cost: 11.1071
 
-- dirname: 2024-09-12-22-44-14--o1-preview-diff
+- dirname: 2024-09-21-16-45-11--o1-preview-flex-sr-markers
   test_cases: 133
-  model: o1-preview (diff)
+  model: o1-preview
   edit_format: diff
-  commit_hash: 72f52bd
-  pass_rate_1: 56.4
-  pass_rate_2: 75.2
-  percent_cases_well_formed: 84.2
-  error_outputs: 27
-  num_malformed_responses: 27
-  num_with_malformed_responses: 21
-  user_asks: 8
-  lazy_comments: 0
-  syntax_errors: 7
-  indentation_errors: 3
-  exhausted_context_windows: 0
-  test_timeouts: 3
-  command: aider --model o1-preview
-  date: 2024-09-12
-  versions: 0.56.1.dev
-  seconds_per_case: 95.8
-  total_cost: 71.7927
-
-- dirname: 2024-09-13-02-13-59--o1-preview-whole
-  test_cases: 133
-  model: o1-preview (whole)
-  edit_format: whole
-  commit_hash: 72f52bd-dirty
-  pass_rate_1: 58.6
+  commit_hash: 5493654-dirty
+  pass_rate_1: 57.9
   pass_rate_2: 79.7
-  percent_cases_well_formed: 100.0
-  error_outputs: 0
-  num_malformed_responses: 0
-  num_with_malformed_responses: 0
-  user_asks: 2
+  percent_cases_well_formed: 93.2
+  error_outputs: 11
+  num_malformed_responses: 11
+  num_with_malformed_responses: 9
+  user_asks: 3
   lazy_comments: 0
-  syntax_errors: 1
+  syntax_errors: 10
   indentation_errors: 0
   exhausted_context_windows: 0
-  test_timeouts: 2
+  test_timeouts: 1
   command: aider --model o1-preview
-  date: 2024-09-13
+  date: 2024-09-21
   versions: 0.56.1.dev
-  seconds_per_case: 47.4
-  total_cost: 38.0612
-
+  seconds_per_case: 80.9
+  total_cost: 63.9190
+                                            
 - dirname: 2024-09-19-16-58-29--qwen2.5-coder:7b-instruct-q8_0
   test_cases: 133
   model: qwen2.5-coder:7b-instruct-q8_0
@@ -1223,4 +1200,96 @@
   date: 2024-09-20
   versions: 0.56.1.dev
   seconds_per_case: 39.8
+  total_cost: 0.0000
+
+- dirname: 2024-09-21-11-56-43--Codestral-22B-v0.1-Q4_K_M.gguf_whole
+  test_cases: 133
+  model: Codestral-22B-v0.1-Q4_K_M
+  edit_format: whole
+  commit_hash: 2753ac6-dirty
+  pass_rate_1: 36.1
+  pass_rate_2: 48.1
+  percent_cases_well_formed: 100.0
+  error_outputs: 0
+  num_malformed_responses: 0
+  num_with_malformed_responses: 0
+  user_asks: 8
+  lazy_comments: 6
+  syntax_errors: 0
+  indentation_errors: 0
+  exhausted_context_windows: 0
+  test_timeouts: 4
+  command: aider --model Codestral-22B-v0.1-Q4_K_M
+  date: 2024-09-21
+  versions: 0.56.1.dev
+  seconds_per_case: 656.4
+  total_cost: 0.9108
+
+- dirname: 2024-09-24-16-26-45--gemini-1.5-pro-002-diff-fenced
+  test_cases: 133
+  model: gemini-1.5-pro-002
+  edit_format: diff-fenced
+  commit_hash: 6b5fe9b, 3edcd71
+  pass_rate_1: 49.6
+  pass_rate_2: 65.4
+  percent_cases_well_formed: 96.2
+  error_outputs: 17
+  num_malformed_responses: 17
+  num_with_malformed_responses: 5
+  user_asks: 3
+  lazy_comments: 0
+  syntax_errors: 2
+  indentation_errors: 0
+  exhausted_context_windows: 0
+  test_timeouts: 4
+  command: aider --model gemini/gemini-1.5-pro-002
+  date: 2024-09-24
+  versions: 0.57.2.dev
+  seconds_per_case: 11.6
+  total_cost: 2.8166
+
+- dirname: 2024-09-24-16-33-23--gemini-1.5-flash-002-whole
+  test_cases: 133
+  model: gemini-1.5-flash-002
+  edit_format: whole
+  commit_hash: 3edcd71
+  pass_rate_1: 37.6
+  pass_rate_2: 51.1
+  percent_cases_well_formed: 100.0
+  error_outputs: 0
+  num_malformed_responses: 0
+  num_with_malformed_responses: 0
+  user_asks: 3
+  lazy_comments: 0
+  syntax_errors: 1
+  indentation_errors: 0
+  exhausted_context_windows: 0
+  test_timeouts: 2
+  command: aider --model gemini/gemini-1.5-flash-002
+  date: 2024-09-24
+  versions: 0.57.2.dev
+  seconds_per_case: 5.1
+  total_cost: 0.0515
+
+- dirname: 2024-09-24-15-18-59--gemini-1.5-flash-8b-exp-0924-whole
+  test_cases: 133
+  model: gemini-1.5-flash-8b-exp-0924
+  edit_format: whole
+  commit_hash: 86faaa6
+  pass_rate_1: 33.1
+  pass_rate_2: 38.3
+  percent_cases_well_formed: 100.0
+  error_outputs: 0
+  num_malformed_responses: 0
+  num_with_malformed_responses: 0
+  user_asks: 9
+  lazy_comments: 6
+  syntax_errors: 8
+  indentation_errors: 0
+  exhausted_context_windows: 0
+  test_timeouts: 1
+  command: aider --model gemini/gemini-1.5-flash-8b-exp-0924
+  date: 2024-09-24
+  versions: 0.57.2.dev
+  seconds_per_case: 6.6
   total_cost: 0.0000
