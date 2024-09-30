@@ -1,6 +1,26 @@
 
 # Release history
 
+### Aider v0.58.0
+
+- [Use a pair of Architect/Editor models for improved coding](https://aider.chat/2024/09/26/architect.html)
+  - Use a strong reasoning model like o1-preview as your Architect.
+  - Use a cheaper, faster model like gpt-4o as your Editor.
+- New `--o1-preview` and `--o1-mini` shortcuts.
+- Support for new Gemini 002 models.
+- Better support for Qwen 2.5 models.
+- Many confirmation questions can be skipped for the rest of the session with "(D)on't ask again" response.
+- Autocomplete for `/read-only` supports the entire filesystem.
+- New settings for completion menu colors.
+- New `/copy` command to copy the last LLM response to the clipboard.
+- Renamed `/clipboard` to `/paste`.
+- Will now follow HTTP redirects when scraping urls.
+- New `--voice-format` switch to send voice audio as wav/mp3/webm, by @mbailey.
+- ModelSettings takes `extra_params` dict to specify any extras to pass to `litellm.completion()`.
+- Support for cursor shapes when in vim mode.
+- Numerous bug fixes.
+- Aider wrote 53% of the code in this release.
+
 ### Aider v0.57.1
 
 - Fixed dependency conflict between aider-chat[help] and [playwright].

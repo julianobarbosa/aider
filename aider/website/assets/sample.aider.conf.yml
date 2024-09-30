@@ -50,6 +50,12 @@
 ## Use deepseek/deepseek-coder model for the main chat
 #deepseek: false
 
+## Use o1-mini model for the main chat
+#o1-mini: false
+
+## Use o1-preview model for the main chat
+#o1-preview: false
+
 #################
 # Model Settings:
 
@@ -83,8 +89,17 @@
 ## Specify what edit format the LLM should use (default depends on model)
 #edit-format: xxx
 
+## Use architect edit format for the main chat
+#architect: false
+
 ## Specify the model to use for commit messages and chat history summarization (default depends on --model)
 #weak-model: xxx
+
+## Specify the model to use for editor tasks (default depends on --model)
+#editor-model: xxx
+
+## Specify the edit format for the editor model (default: depends on editor model)
+#editor-edit-format: xxx
 
 ## Only work with models that have meta-data available (default: True)
 #show-model-warnings: true
@@ -160,6 +175,18 @@
 
 ## Set the color for assistant output (default: #0088ff)
 #assistant-output-color: #0088ff
+
+## Set the color for the completion menu (default: terminal's default text color)
+#completion-menu-color: xxx
+
+## Set the background color for the completion menu (default: terminal's default background color)
+#completion-menu-bg-color: xxx
+
+## Set the color for the current item in the completion menu (default: terminal's default background color)
+#completion-menu-current-color: xxx
+
+## Set the background color for the current item in the completion menu (default: terminal's default text color)
+#completion-menu-current-bg-color: xxx
 
 ## Set the markdown code theme (default: default, other options include monokai, solarized-dark, solarized-light)
 #code-theme: default

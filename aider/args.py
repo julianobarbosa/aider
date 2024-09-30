@@ -117,6 +117,22 @@ def get_parser(default_config_files, git_root):
         const=deepseek_model,
         help=f"Use {deepseek_model} model for the main chat",
     )
+    o1_mini_model = "o1-mini"
+    group.add_argument(
+        "--o1-mini",
+        action="store_const",
+        dest="model",
+        const=o1_mini_model,
+        help=f"Use {o1_mini_model} model for the main chat",
+    )
+    o1_preview_model = "o1-preview"
+    group.add_argument(
+        "--o1-preview",
+        action="store_const",
+        dest="model",
+        const=o1_preview_model,
+        help=f"Use {o1_preview_model} model for the main chat",
+    )
 
     ##########
     group = parser.add_argument_group("Model Settings")
@@ -182,6 +198,13 @@ def get_parser(default_config_files, git_root):
         help="Specify what edit format the LLM should use (default depends on model)",
     )
     group.add_argument(
+        "--architect",
+        action="store_const",
+        dest="edit_format",
+        const="architect",
+        help="Use architect edit format for the main chat",
+    )
+    group.add_argument(
         "--weak-model",
         metavar="WEAK_MODEL",
         default=None,
@@ -189,6 +212,18 @@ def get_parser(default_config_files, git_root):
             "Specify the model to use for commit messages and chat history summarization (default"
             " depends on --model)"
         ),
+    )
+    group.add_argument(
+        "--editor-model",
+        metavar="EDITOR_MODEL",
+        default=None,
+        help="Specify the model to use for editor tasks (default depends on --model)",
+    )
+    group.add_argument(
+        "--editor-edit-format",
+        metavar="EDITOR_EDIT_FORMAT",
+        default=None,
+        help="Specify the edit format for the editor model (default: depends on editor model)",
     )
     group.add_argument(
         "--show-model-warnings",
@@ -336,6 +371,39 @@ def get_parser(default_config_files, git_root):
         "--assistant-output-color",
         default="#0088ff",
         help="Set the color for assistant output (default: #0088ff)",
+    )
+    group.add_argument(
+        "--completion-menu-color",
+        metavar="COLOR",
+        default=None,
+        help="Set the color for the completion menu (default: terminal's default text color)",
+    )
+    group.add_argument(
+        "--completion-menu-bg-color",
+        metavar="COLOR",
+        default=None,
+        help=(
+            "Set the background color for the completion menu (default: terminal's default"
+            " background color)"
+        ),
+    )
+    group.add_argument(
+        "--completion-menu-current-color",
+        metavar="COLOR",
+        default=None,
+        help=(
+            "Set the color for the current item in the completion menu (default: terminal's default"
+            " background color)"
+        ),
+    )
+    group.add_argument(
+        "--completion-menu-current-bg-color",
+        metavar="COLOR",
+        default=None,
+        help=(
+            "Set the background color for the current item in the completion menu (default:"
+            " terminal's default text color)"
+        ),
     )
     group.add_argument(
         "--code-theme",

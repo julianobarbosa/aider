@@ -27,13 +27,14 @@ cog.out(get_md_help())
 ```
 usage: aider [-h] [--openai-api-key] [--anthropic-api-key] [--model]
              [--opus] [--sonnet] [--4] [--4o] [--mini] [--4-turbo]
-             [--35turbo] [--deepseek] [--list-models]
-             [--openai-api-base] [--openai-api-type]
+             [--35turbo] [--deepseek] [--o1-mini] [--o1-preview]
+             [--list-models] [--openai-api-base] [--openai-api-type]
              [--openai-api-version] [--openai-api-deployment-id]
              [--openai-organization-id] [--model-settings-file]
              [--model-metadata-file]
              [--verify-ssl | --no-verify-ssl] [--edit-format]
-             [--weak-model]
+             [--architect] [--weak-model] [--editor-model]
+             [--editor-edit-format]
              [--show-model-warnings | --no-show-model-warnings]
              [--max-chat-history-tokens] [--env-file]
              [--cache-prompts | --no-cache-prompts]
@@ -45,7 +46,10 @@ usage: aider [-h] [--openai-api-key] [--anthropic-api-key] [--model]
              [--pretty | --no-pretty] [--stream | --no-stream]
              [--user-input-color] [--tool-output-color]
              [--tool-error-color] [--tool-warning-color]
-             [--assistant-output-color] [--code-theme]
+             [--assistant-output-color] [--completion-menu-color]
+             [--completion-menu-bg-color]
+             [--completion-menu-current-color]
+             [--completion-menu-current-bg-color] [--code-theme]
              [--show-diffs] [--git | --no-git]
              [--gitignore | --no-gitignore] [--aiderignore]
              [--subtree-only] [--auto-commits | --no-auto-commits]
@@ -130,6 +134,14 @@ Aliases:
 Use deepseek/deepseek-coder model for the main chat  
 Environment variable: `AIDER_DEEPSEEK`  
 
+### `--o1-mini`
+Use o1-mini model for the main chat  
+Environment variable: `AIDER_O1_MINI`  
+
+### `--o1-preview`
+Use o1-preview model for the main chat  
+Environment variable: `AIDER_O1_PREVIEW`  
+
 ## Model Settings:
 
 ### `--list-models MODEL`
@@ -184,9 +196,21 @@ Aliases:
   - `--edit-format EDIT_FORMAT`
   - `--chat-mode EDIT_FORMAT`
 
+### `--architect`
+Use architect edit format for the main chat  
+Environment variable: `AIDER_ARCHITECT`  
+
 ### `--weak-model WEAK_MODEL`
 Specify the model to use for commit messages and chat history summarization (default depends on --model)  
 Environment variable: `AIDER_WEAK_MODEL`  
+
+### `--editor-model EDITOR_MODEL`
+Specify the model to use for editor tasks (default depends on --model)  
+Environment variable: `AIDER_EDITOR_MODEL`  
+
+### `--editor-edit-format EDITOR_EDIT_FORMAT`
+Specify the edit format for the editor model (default: depends on editor model)  
+Environment variable: `AIDER_EDITOR_EDIT_FORMAT`  
 
 ### `--show-model-warnings`
 Only work with models that have meta-data available (default: True)  
@@ -311,6 +335,22 @@ Environment variable: `AIDER_TOOL_WARNING_COLOR`
 Set the color for assistant output (default: #0088ff)  
 Default: #0088ff  
 Environment variable: `AIDER_ASSISTANT_OUTPUT_COLOR`  
+
+### `--completion-menu-color COLOR`
+Set the color for the completion menu (default: terminal's default text color)  
+Environment variable: `AIDER_COMPLETION_MENU_COLOR`  
+
+### `--completion-menu-bg-color COLOR`
+Set the background color for the completion menu (default: terminal's default background color)  
+Environment variable: `AIDER_COMPLETION_MENU_BG_COLOR`  
+
+### `--completion-menu-current-color COLOR`
+Set the color for the current item in the completion menu (default: terminal's default background color)  
+Environment variable: `AIDER_COMPLETION_MENU_CURRENT_COLOR`  
+
+### `--completion-menu-current-bg-color COLOR`
+Set the background color for the current item in the completion menu (default: terminal's default text color)  
+Environment variable: `AIDER_COMPLETION_MENU_CURRENT_BG_COLOR`  
 
 ### `--code-theme VALUE`
 Set the markdown code theme (default: default, other options include monokai, solarized-dark, solarized-light)  

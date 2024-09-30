@@ -96,6 +96,12 @@ cog.outl("```")
 ## Use deepseek/deepseek-coder model for the main chat
 #AIDER_DEEPSEEK=
 
+## Use o1-mini model for the main chat
+#AIDER_O1_MINI=
+
+## Use o1-preview model for the main chat
+#AIDER_O1_PREVIEW=
+
 #################
 # Model Settings:
 
@@ -129,8 +135,17 @@ cog.outl("```")
 ## Specify what edit format the LLM should use (default depends on model)
 #AIDER_EDIT_FORMAT=
 
+## Use architect edit format for the main chat
+#AIDER_ARCHITECT=
+
 ## Specify the model to use for commit messages and chat history summarization (default depends on --model)
 #AIDER_WEAK_MODEL=
+
+## Specify the model to use for editor tasks (default depends on --model)
+#AIDER_EDITOR_MODEL=
+
+## Specify the edit format for the editor model (default: depends on editor model)
+#AIDER_EDITOR_EDIT_FORMAT=
 
 ## Only work with models that have meta-data available (default: True)
 #AIDER_SHOW_MODEL_WARNINGS=true
@@ -206,6 +221,18 @@ cog.outl("```")
 
 ## Set the color for assistant output (default: #0088ff)
 #AIDER_ASSISTANT_OUTPUT_COLOR=#0088ff
+
+## Set the color for the completion menu (default: terminal's default text color)
+#AIDER_COMPLETION_MENU_COLOR=
+
+## Set the background color for the completion menu (default: terminal's default background color)
+#AIDER_COMPLETION_MENU_BG_COLOR=
+
+## Set the color for the current item in the completion menu (default: terminal's default background color)
+#AIDER_COMPLETION_MENU_CURRENT_COLOR=
+
+## Set the background color for the current item in the completion menu (default: terminal's default text color)
+#AIDER_COMPLETION_MENU_CURRENT_BG_COLOR=
 
 ## Set the markdown code theme (default: default, other options include monokai, solarized-dark, solarized-light)
 #AIDER_CODE_THEME=default
