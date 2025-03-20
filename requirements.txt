@@ -16,6 +16,8 @@ anyio==4.6.2.post1
     # via
     #   httpx
     #   openai
+async-timeout==5.0.1
+    # via aiohttp
 attrs==24.2.0
     # via
     #   aiohttp
@@ -48,6 +50,8 @@ diskcache==5.6.3
     # via -r requirements/requirements.in
 distro==1.9.0
     # via openai
+exceptiongroup==1.2.2
+    # via anyio
 filelock==3.16.1
     # via huggingface-hub
 flake8==7.1.1
@@ -96,7 +100,7 @@ jsonschema==4.23.0
     #   litellm
 jsonschema-specifications==2024.10.1
     # via jsonschema
-litellm==1.52.8
+litellm==1.53.1.dev1
     # via -r requirements/requirements.in
 markdown-it-py==3.0.0
     # via rich
@@ -231,10 +235,13 @@ tree-sitter-languages==1.10.2
     # via grep-ast
 typing-extensions==4.12.2
     # via
+    #   anyio
     #   huggingface-hub
+    #   multidict
     #   openai
     #   pydantic
     #   pydantic-core
+    #   rich
 urllib3==2.2.3
     # via
     #   mixpanel
@@ -244,4 +251,6 @@ wcwidth==0.2.13
 yarl==1.17.1
     # via aiohttp
 zipp==3.21.0
-    # via importlib-metadata
+    # via
+    #   importlib-metadata
+    #   importlib-resources
